@@ -14,27 +14,42 @@ export default NextAuth({
   // jwt: {
   //   signingKey: process.env.SIGNING_KEY,
   // },
-  callbacks:{
-    async signIn(user, account, profile){
+  callbacks: {
+    async signIn(user, account, profile) {
       // console.log(user);
-      const {email } = user;
+      const { email } = user;
 
-     try{
-      await fauna.query(
-        q.Create(
-          q.Collection('users'), //nome da tabela
-          {data: {email}}
+      try {
+        await fauna.query(
+          q.If( //Se
+            q.Not( //Não
+              q.Exists( //Existir
+                q.Match( //Um usuário no qual o match não é nessa condição aqui
+                  q.Index('user_by_email'), //Procura por email no bando de dados
+                  q.Casefold(user.email), //Casefold evita problemas com maiusc e minusc
+                )
+              )
+            ),
+            q.Create( //Quero que crie o usuário caso ele não exista no banco
+              q.Collection('users'), //nome da tabela
+              { data: { email } }
+            ),
+            q.Get( //Senão busca usuario email //Get: é um select dentro do sql
+              q.Match(
+                q.Index('user_by_email'),
+                q.Casefold(user.email),
+              )
+            )
+          )
         )
-      )
-      return true
-     } catch{
-       return false
-     }
-
+        return true
+      } catch {
+        return false
+      }
     }
   }
-
-})
+}
+)
 
 // export default NextAuth({
 //   providers: [
